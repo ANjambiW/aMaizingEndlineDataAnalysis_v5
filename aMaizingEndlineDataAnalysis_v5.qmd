@@ -1,0 +1,2027 @@
+---
+title: "aMaizing Endline Analysis"
+author: "Agnes"
+format: html   #  # docx
+editor: visual
+---
+
+```{r, include=FALSE}
+## Clear the environment
+
+rm(list = ls())
+
+```
+
+```{r, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, include=FALSE)
+```
+
+```{r, include=FALSE}
+## Loading necessary libraries
+
+library(tidyverse) # includes the dplyr, ggplot2, tidyr, readr, stringr, forcats, tibble packages
+library(readxl)
+library(Hmisc)
+library(labelled)
+library(magrittr)
+library(datawizard)
+library(gtsummary)
+library(gt)
+library(kableExtra)
+library(flextable)
+library(splitstackshape)
+library(lubridate)
+library(foreign)
+library(haven)
+library(viridis)
+library(ggthemes)
+library(hrbrthemes)
+library(patchwork)
+library(gridExtra)
+library(scales)
+library(reshape2)
+library(janitor)
+library(dlookr)
+library(summarytools)
+library(vcd)
+library(tidyquant)
+```
+
+```{r, include=FALSE}
+# Set working directory (Not necessary since the current wd is the correct wd)
+
+setwd("C:\\Users\\awanjau\\OneDrive - CGIAR\\Alliance\\Alliance_2024\\AMAZING\\aMaizingEndlineSurvey\\aMaizingEndlineDataAnalysis_v5")
+```
+
+```{r, include=FALSE}
+
+#Load R data
+
+load("C:\\Users\\awanjau\\OneDrive - CGIAR\\Alliance\\Alliance_2024\\AMAZING\\aMaizingEndlineSurvey\\aMaizingEndlineDataCleaning_6\\amaizing_endlinedata_clean_v6.RData")
+
+
+```
+
+# 1.1 Farmer **insurance perceptions** (how they vary per county).
+
+## G2. In your opinion, what is the MAIN benefit of having crop insurance?
+
+```{r}
+
+# cross-tabs - method 1
+
+crostab_1 <- amaizing_endlinedata_clean_v6 %>%
+  filter(!is.na(g2) & g2 != "Don’t know") %>%
+  group_by(b6, g2) %>%
+  tally() %>% # Similar to n()
+  mutate(percent = round((n/sum(n))*100,1)) %>%
+  ungroup() %>%
+  dplyr::select(-n) %>%
+  spread(g2, percent) %>% # The variable specified here (g2) forms the columns in the "spread" crosstab
+ # replace_na(list("Don’t know" = 0, "Improved access to loans" = 0, "Protection against weather-related risks" = 0, "Stability in income during challenging seasons" = 0)) %>%
+  arrange(-`Financial compensation`) %>%
+  mutate(b6 = forcats::fct_reorder(b6, `Financial compensation`)) %>%
+  gather(key = "g2", value = "percent", `Financial compensation`:`Stability in income during challenging seasons`)
+
+crostab_1
+```
+
+```{r warning=FALSE}
+crostab_1 %>%
+  ggplot(aes(g2,b6)) +
+  
+  # Geometries
+  
+  geom_tile(aes(fill = percent)) +
+  geom_text(aes(label = percent, family = "Verdana", size = 3)) + 
+  
+  
+  # Formatting
+  
+  coord_cartesian( expand = FALSE) +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) + 
+  labs(
+    x = "Benefits",
+    y = "County"
+  ) +
+
+theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1, color = "black", family = "Verdana"),
+    axis.text.y = element_text(color = "black", family = "Verdana")
+    ) 
+  
+```
+
+```{r}
+# % of county total
+
+# Male in treatment group
+#unique(amaizing_endlinedata_clean_v6$b6)
+
+study_county <- amaizing_endlinedata_clean_v6 %>%
+  filter(b6 %in% c("Bungoma", "Busia", "Makueni", "Embu", "Uasin Gishu" ))
+
+male_t_g2 <- study_county %>%
+  dplyr::select(b2, c2, b6, g2) %>%
+  filter(c2 == "No" & b2 == "Male" & !is.na(b6) & !is.na(g2) & g2 != "Don’t know" ) %>%
+  
+  group_by(b6, g2) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = round(count * 100/ sum(count), 1)) %>%
+  dplyr::select(b6, g2, percentage) 
+  
+
+
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+# Heatmap - https://www.r-bloggers.com/2022/10/how-to-create-a-heatmap-in-r/ 
+
+hm_male_t_g2 <- ggplot(male_t_g2 %>% mutate(g2 = ifelse(g2 == "Stability in income during challenging seasons", "Stability in income\n during challenging seasons", ifelse(g2 == "Protection against weather-related risks", "Protection against\n weather-related risks", 
+                                                        as.character(g2)))), aes(x = b6, y = g2, fill = percentage)) +
+  #geom_tile(color = "black", show.legend = FALSE) +
+  geom_tile( show.legend = FALSE) +
+  geom_text(aes(label = percentage), color = "black", family = "Times New Roman", size = 6) +
+  coord_cartesian( expand = FALSE) +
+  #coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  
+  
+
+  #scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) + 
+  labs(y = "", x = "", title = "Male - Intervention"
+       
+       #In your opinion, what is the MAIN benefit of having crop insurance?
+    #title = "Tile Plot of F6 No Ins vs F7",
+    #subtitle = "With Percentage Values",
+    #caption = "Source: Your Data Source"
+    
+  ) +
+  
+  theme(
+    #axis.text.x = element_blank(), # Remove x axis text
+    #axis.text.y = element_blank(),
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+    strip.text = element_text(family = "Times New Roman", size = 18, color = "black") #,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm")
+    
+  ) #+
+  
+ # theme(axis.text.x = element_text(size = 16))
+
+  #facet_wrap(~ b6)
+
+hm_male_t_g2
+
+# save the plot 
+ggsave(filename = "hm_male_t_g2.png",
+       plot = hm_male_t_g2,
+       # width = 4.5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+  
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+# Heatmap - https://www.r-bloggers.com/2022/10/how-to-create-a-heatmap-in-r/ 
+
+male_c_g2 <- study_county %>%
+  dplyr::select(b2, c2, b6, g2) %>%
+  filter(c2 == "Yes" & b2 == "Male" & !is.na(b6)  & !is.na(g2) & g2 != "Don’t know" &  g2 != "Improved access to loans") %>%
+  #filter(b6 %in% c("Bungoma", "Busia", "Embu", "Makueni", "Uasin Gishu" )) %>%
+  
+  group_by(b6, g2) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = round(count * 100/ sum(count), 1)) %>%
+  dplyr::select(b6, g2, percentage) 
+
+
+
+hm_male_c_g2 <- ggplot(male_c_g2 %>% mutate(g2 = ifelse(g2 == "Stability in income during challenging seasons", "Stability in income\n during challenging seasons", ifelse(g2 == "Protection against weather-related risks", "Protection against\n weather-related risks", 
+                                                        as.character(g2)))), aes(x = b6, y = g2, fill = percentage)) +
+  #geom_tile(color = "black", show.legend = FALSE) +
+  geom_tile( show.legend = FALSE) +
+  geom_text(aes(label = percentage), color = "black", family = "Times New Roman", size = 6) +
+  coord_cartesian( expand = FALSE) +
+  #coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  
+  
+
+  #scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) + 
+  labs(y = "", x = "", title = "Male - Comparison"
+       
+       #In your opinion, what is the MAIN benefit of having crop insurance?
+    #title = "Tile Plot of F6 No Ins vs F7",
+    #subtitle = "With Percentage Values",
+    #caption = "Source: Your Data Source"
+    
+  ) +
+  
+  theme(
+    #axis.text.x = element_blank(), # Remove x axis text
+    #axis.text.y = element_blank(),
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+    strip.text = element_text(family = "Times New Roman", size = 18, color = "black") #,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm")
+    
+  ) #+
+  
+ # theme(axis.text.x = element_text(size = 16))
+
+  #facet_wrap(~ b6)
+
+hm_male_c_g2
+
+# save the plot 
+ggsave(filename = "hm_male_c_g2.png",
+       plot = hm_male_c_g2,
+       # width = 4.5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+  
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+# Heatmap - https://www.r-bloggers.com/2022/10/how-to-create-a-heatmap-in-r/ 
+
+#unique(amaizing_endlinedata_clean_v6$b6)
+
+female_t_g2 <- amaizing_endlinedata_clean_v6 %>%
+  dplyr::select(b2, c2, b6, g2) %>%
+  filter(c2 == "No" & b2 == "Female" & !is.na(b6)  & !is.na(g2) & g2 != "Don’t know" & g2 != "Improved access to loans" ) %>%
+  filter(b6 %in% c("Bungoma", "Busia", "Embu", "Makueni", "Uasin Gishu")) %>%
+  group_by(b6, g2) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = round(count * 100/ sum(count), 1)) %>%
+  dplyr::select(b6, g2, percentage) 
+
+
+female_t_g2
+
+
+hm_female_t_g2 <- ggplot(female_t_g2 %>% mutate(g2 = ifelse(g2 == "Stability in income during challenging seasons", "Stability in income\n during challenging seasons", ifelse(g2 == "Protection against weather-related risks", "Protection against\n weather-related risks", 
+                                                        as.character(g2)))),
+                         aes(x = b6, y = g2, fill = percentage)) +
+  geom_tile( show.legend = FALSE) +
+  geom_text(aes(label = percentage), color = "black", family = "Times New Roman", size = 6) +
+  coord_cartesian( expand = FALSE) +
+  #coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  
+  #scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) +
+  labs(y = "", x = "", title = "Female - Intervention"
+       #y = "County", x = "In your opinion, what is the MAIN benefit of having crop insurance?"
+    #title = "Tile Plot of F6 No Ins vs F7",
+    #subtitle = "With Percentage Values",
+    #caption = "Source: Your Data Source"
+  ) +
+  theme(
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+    strip.text = element_text(family = "Times New Roman", size = 18, color = "black") #,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm")
+    
+  ) #+
+  
+  #facet_wrap(~ b6)
+
+hm_female_t_g2
+
+# save the plot 
+ggsave(filename = "hm_female_t_g2.png",
+       plot = hm_female_t_g2,
+       width = 4.5,
+       height = 4.5,
+       dpi = "print",
+       bg = "white")
+  
+
+
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+# Heatmap - https://www.r-bloggers.com/2022/10/how-to-create-a-heatmap-in-r/ 
+
+
+female_c_g2 <- amaizing_endlinedata_clean_v6 %>%
+  dplyr::select(b2, c2, b6, g2) %>%
+  filter(c2 == "Yes" & b2 == "Female" & !is.na(g2) & g2 != "Don’t know" & g2 != "Improved access to loans" ) %>%
+  filter(b6 %in% c("Bungoma", "Busia", "Embu",  "Makueni", "Uasin Gishu" )) %>%
+  group_by(b6, g2) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = round(count * 100/ sum(count), 1)) %>%
+  dplyr::select(b6, g2, percentage) 
+
+
+hm_female_c_g2 <- ggplot(female_c_g2 %>% mutate(g2 = ifelse(g2 == "Stability in income during challenging seasons", "Stability in income\n during challenging seasons", ifelse(g2 == "Protection against weather-related risks", "Protection against\n weather-related risks", 
+                                                        as.character(g2)))),
+                         aes(x = b6, y = g2, fill = percentage)) +
+  geom_tile( show.legend = FALSE) +
+  geom_text(aes(label = percentage), color = "black", family = "Times New Roman", size = 6) +
+  coord_cartesian( expand = FALSE) +
+  #coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  
+  #scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) +
+  labs(y = "", x = "", title = "Female - Comparison"
+       #x = "In your opinion, what is the MAIN benefit of having crop insurance?"
+    #title = "Tile Plot of F6 No Ins vs F7",
+    #subtitle = "With Percentage Values",
+    #caption = "Source: Your Data Source"
+  ) +
+  theme(
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+    strip.text = element_text(family = "Times New Roman", size = 18, color = "black") #,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm")
+    
+  ) #+
+  
+  #facet_wrap(~ b6)
+
+hm_female_c_g2
+
+# save the plot 
+ggsave(filename = "hm_female_c_g2.png",
+       plot = hm_female_c_g2,
+       width = 4.5,
+       height = 4.5,
+       dpi = "print",
+       bg = "white")
+  
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+
+#library(gridExtra)
+
+grid.arrange(hm_male_t_g2, hm_male_c_g2, hm_female_t_g2, hm_female_c_g2, ncol = 2)
+
+
+# save the plot 
+ggsave(filename = "g2hm_insurance_benefit.png",
+       plot = grid.arrange(hm_male_t_g2, hm_male_c_g2, hm_female_t_g2, hm_female_c_g2, ncol = 2),
+       # width = 7,
+       # height = 6,
+       dpi = "print",
+       bg = "white")
+
+```
+
+## G3. What do you think about the affordability of the premiums?
+
+***Treatment farmers only***
+
+```{r, warning=FALSE, include=TRUE}
+
+# Heatmap - https://www.r-bloggers.com/2022/10/how-to-create-a-heatmap-in-r/ 
+
+male_t_g3 <- amaizing_endlinedata_clean_v6 %>%
+  dplyr::select(b2, c2, b6, g3) %>%
+  filter(c2 == "Yes" & b2 == "Male" & !is.na(g3)) %>%
+  filter(b6 %in% c("Bungoma", "Busia", "Embu", "Makueni", "Uasin Gishu" )) %>%
+  group_by(b6, g3) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = round(count *100 / sum(count), 1)) %>%
+  dplyr::select(b6, g3, percentage) 
+
+male_t_g3
+
+
+hm_male_t_g3 <- ggplot(male_t_g3 %>% mutate(g3 = ifelse(g3 == "Affordability depends on the size and profitability of the farm", "Affordability depends on\n the size and profitability\n of the farm", ifelse(g3 == "Premiums are a financial burden for farmers", "Premiums are a financial\n burden for farmers", 
+                                                        as.character(g3)))),
+                       aes(x = b6, y = g3, fill = percentage)) +
+  geom_tile( show.legend = FALSE) +
+  geom_text(aes(label = percentage), color = "black", family = "Times New Roman", size = 6) +
+  coord_cartesian( expand = FALSE) +
+  #coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  
+  #scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  #scale_fill_gradient(low = "white", high = palette_light()[1]) +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) +
+  labs(y = "", x = "", title = "Male - Intervention") + #What do you think about the affordability of the premiums? or y = "County", x = "Affordability of the premiums"
+  theme(
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+    strip.text = element_text(family = "Times New Roman", size = 18, color = "black") #,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm")
+    
+  ) #+
+  
+  #facet_wrap(~ b6)
+
+hm_male_t_g3
+
+# save the plot 
+ggsave(filename = "hm_male_t_g3.png",
+       plot = hm_male_t_g3,
+       width = 4.5,
+       height = 4.5,
+       dpi = "print",
+       bg = "white")
+  
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+# Heatmap - https://www.r-bloggers.com/2022/10/how-to-create-a-heatmap-in-r/ 
+
+female_t_g3 <- amaizing_endlinedata_clean_v6 %>%
+  dplyr::select(b2, c2, b6, g3) %>%
+  filter(c2 == "Yes" & b2 == "Female" & !is.na(g3)) %>%
+  filter(b6 %in% c("Bungoma", "Busia", "Embu", "Makueni","Uasin Gishu" )) %>%
+  group_by(b6, g3) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = round(count *100 / sum(count), 1)) %>%
+  dplyr::select(b6, g3, percentage) 
+
+female_t_g3
+
+hm_female_t_g3 <- ggplot(female_t_g3 %>% mutate(g3 = ifelse(g3 == "Affordability depends on the size and profitability of the farm", "Affordability depends on\n the size and profitability\n of the farm", ifelse(g3 == "Premiums are a financial burden for farmers", "Premiums are a financial\n burden for farmers", 
+                                                        as.character(g3)))),
+                         aes(x = b6, y = g3, fill = percentage)) +
+  geom_tile( show.legend = FALSE) +
+  geom_text(aes(label = percentage), color = "black", family = "Times New Roman", size = 6) +
+  coord_cartesian( expand = FALSE) +
+  #coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  
+  #scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) +
+  labs(y = "", x = "", title = "Female - Intervention") + 
+  #What do you think about the affordability of the premiums? or x = "Affordability of the premiums"
+  theme(
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+    strip.text = element_text(family = "Times New Roman", size = 18, color = "black") #,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm")
+    
+  ) #+
+  
+  #facet_wrap(~ b6)
+
+hm_female_t_g3
+
+# save the plot 
+ggsave(filename = "female_t_g3.png",
+       plot = hm_female_t_g3,
+       width = 4.5,
+       height = 4.5,
+       dpi = "print",
+       bg = "white")
+  
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+
+#library(gridExtra)
+
+grid.arrange(hm_male_t_g3, hm_female_t_g3, ncol = 1)
+
+
+# save the plot 
+ggsave(filename = "g3hm_premium_afford.png",
+       plot = grid.arrange(hm_male_t_g3, hm_female_t_g3, ncol = 1),
+       # width = 4.5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+## G4. What challenge or barrier have you MAINLY faced in accessing agricultural insurance?
+
+```{r, warning=FALSE, include=TRUE}
+
+# Heatmap - https://www.r-bloggers.com/2022/10/how-to-create-a-heatmap-in-r/ 
+
+male_t_g4 <- amaizing_endlinedata_clean_v6 %>%
+  dplyr::select(b2, c2, b6, g4) %>%
+  filter(c2 == "Yes" & b2 == "Male" & !is.na(g4)) %>%
+  filter(!g4 %in% c("Complex application processes", "Doubts about benefits", "High premiums", "Inadequate government support", "Lack of tailored solutions")) %>%
+  filter(b6 %in% c("Bungoma", "Busia", "Embu", "Makueni","Uasin Gishu" )) %>%
+  group_by(b6, g4) %>%
+  group_by(b6, g4) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = round(count *100 / sum(count), 1)) %>%
+  dplyr::select(b6, g4, percentage) 
+
+male_t_g4
+
+
+hm_male_t_g4 <- ggplot(male_t_g4, aes(x = b6, y = g4 , fill = percentage)) +
+  geom_tile( show.legend = FALSE) +
+  geom_text(aes(label = percentage), color = "black", family = "Times New Roman", size = 6) +
+  coord_cartesian( expand = FALSE) +
+  #coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  
+  #scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) +
+  labs(y = "", x = "", title = "Male - Intervention") + #Challenge/barrier mainly faced in accessing agricultural insurance
+  theme(
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+    strip.text = element_text(family = "Times New Roman", size = 18, color = "black") #,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm")
+    
+  ) #+
+  
+  #facet_wrap(~ b6)
+
+hm_male_t_g4
+
+# save the plot 
+ggsave(filename = "hm_male_t_g4.png",
+       plot = hm_male_t_g4,
+       width = 4.5,
+       height = 4.5,
+       dpi = "print",
+       bg = "white")
+  
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+# Heatmap - https://www.r-bloggers.com/2022/10/how-to-create-a-heatmap-in-r/ 
+
+male_c_g4 <- amaizing_endlinedata_clean_v6 %>%
+  dplyr::select(b2, c2, b6, g4) %>%
+  filter(c2 == "No" & b2 == "Male" & !is.na(g4)) %>%
+  filter(!g4 %in% c("Complex application processes", "Doubts about benefits", "High premiums", "Inadequate government support", "Lack of tailored solutions")) %>%
+  filter(b6 %in% c("Bungoma", "Busia", "Embu", "Makueni","Uasin Gishu" )) %>%
+  group_by(b6, g4) %>%
+  group_by(b6, g4) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = round(count * 100/ sum(count), 1)) %>%
+  dplyr::select(b6, g4, percentage) 
+
+male_c_g4
+
+hm_male_c_g4 <- ggplot(male_c_g4, aes(x = b6, y =  g4, fill = percentage)) +
+  geom_tile( show.legend = FALSE) +
+  geom_text(aes(label = percentage), color = "black", family = "Times New Roman", size = 6) +
+  coord_cartesian( expand = FALSE) +
+  #coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+ 
+  # scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) +
+  labs(y = "", x = "", title = "Male - Comparison") + #Challenge/barrier mainly faced in accessing agricultural insurance
+  theme(
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+    strip.text = element_text(family = "Times New Roman", size = 18, color = "black") #,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm")
+    
+  ) #+
+  
+  #facet_wrap(~ b6)
+
+hm_male_c_g4
+
+# save the plot 
+ggsave(filename = "hm_male_c_g4.png",
+       plot = hm_male_c_g4,
+       width = 4.5,
+       height = 4.5,
+       dpi = "print",
+       bg = "white")
+  
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+# Heatmap - https://www.r-bloggers.com/2022/10/how-to-create-a-heatmap-in-r/ 
+
+female_t_g4 <- amaizing_endlinedata_clean_v6 %>%
+  dplyr::select(b2, c2, b6, g4) %>%
+  filter(c2 == "Yes" & b2 == "Female" & !is.na(g4)) %>%
+  filter(!g4 %in% c("Complex application processes", "Doubts about benefits", "High premiums", "Inadequate government support", "Lack of tailored solutions")) %>%
+  filter(b6 %in% c("Bungoma", "Busia", "Embu", "Makueni","Uasin Gishu" )) %>%
+  group_by(b6, g4) %>%
+  group_by(b6, g4) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = round(count * 100/ sum(count), 1)) %>%
+  dplyr::select(b6, g4, percentage) 
+
+female_t_g4
+
+hm_female_t_g4 <- ggplot(female_t_g4, aes(x = b6, y = g4 , fill = percentage)) +
+  geom_tile( show.legend = FALSE) +
+  geom_text(aes(label = percentage), color = "black", family = "Times New Roman", size = 6) +
+  coord_cartesian( expand = FALSE) +
+  #coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+ 
+  #scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) +
+  labs(y = "", x = "", title = "Female - Intervention") + 
+  #y = "County", x = "Main challenge in accessing agricultural insurance"
+  theme(
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+    strip.text = element_text(family = "Times New Roman", size = 18, color = "black") #,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm")
+    
+  ) #+
+  
+  #facet_wrap(~ b6)
+
+hm_female_t_g4
+
+# save the plot 
+ggsave(filename = "hm_female_t_g4.png",
+       plot = hm_female_t_g4,
+       width = 4.5,
+       height = 4.5,
+       dpi = "print",
+       bg = "white")
+  
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+# Heatmap - https://www.r-bloggers.com/2022/10/how-to-create-a-heatmap-in-r/ 
+
+#unique(amaizing_endlinedata_clean_v6$g4)
+
+female_c_g4 <- amaizing_endlinedata_clean_v6 %>%
+  dplyr::select(b2, c2, b6, g4) %>%
+  filter(c2 == "No" & b2 == "Female" & !is.na(g4)) %>%
+  filter(!g4 %in% c("Complex application processes", "Doubts about benefits", "High premiums", "Inadequate government support", "Lack of tailored solutions")) %>%
+  filter(b6 %in% c("Bungoma", "Busia", "Embu", "Makueni","Uasin Gishu" )) %>%
+  group_by(b6, g4) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = round(count * 100/ sum(count), 1)) %>%
+  dplyr::select(b6, g4, percentage)
+
+female_c_g4
+
+
+
+hm_female_c_g4 <- ggplot(female_c_g4, aes(x = b6, y = g4 , fill = percentage)) +
+  geom_tile( show.legend = FALSE) +
+  geom_text(aes(label = percentage), color = "black", family = "Times New Roman", size = 6) +
+  coord_cartesian( expand = FALSE) +
+  #coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  
+  #scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_fill_gradient(low = "white", high = palette_light()[1]) +
+  labs(y = "", x = "", title = "Female - Comparison") + #Challenge/barrier mainly faced in accessing agricultural insurance
+  theme(
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+    strip.text = element_text(family = "Times New Roman", size = 18, color = "black") #,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm")
+    
+  ) #+
+  
+  #facet_wrap(~ b6)
+
+hm_female_c_g4
+
+# save the plot 
+ggsave(filename = "hm_female_c_g4.png",
+       plot = hm_female_c_g4,
+       width = 4.5,
+       height = 4.5,
+       dpi = "print",
+       bg = "white")
+  
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+
+#library(gridExtra)
+
+grid.arrange(hm_male_t_g4, hm_male_c_g4, hm_female_t_g4, hm_female_c_g4, ncol = 2)
+
+
+# save the plot 
+ggsave(filename = "g4hm_barrier.png",
+       plot = grid.arrange(hm_male_t_g4, hm_male_c_g4, hm_female_t_g4, hm_female_c_g4, ncol = 2),
+       # width = 5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+## G6. What improvements or changes would you like to see in agricultural insurance offerings for farmers?
+
+***this question g6 was answered by treat farmers only***
+
+```{r, include=FALSE}
+
+ #names(amaizing_endlinedata_clean_v6)
+
+study_county <- amaizing_endlinedata_clean_v6 %>%
+  filter(b6 %in% c("Bungoma", "Busia", "Embu", "Makueni","Uasin Gishu" ))
+
+
+g6_male <- study_county %>%
+  filter(b2 == "Male") 
+
+
+g6_male_cats <- names(g6_male)[83:92]
+
+
+
+
+ #data_g6 <- str_remove_all(data_g6, "A17_")
+
+data_g6_male <- data.frame(
+  g6_male_cats,
+  Freq = colSums(g6_male[83:92], na.rm = TRUE),  # Use na.rm = TRUE to handle NA values
+  g6_Pct.of.Resp = round((colSums(g6_male[83:92], na.rm = TRUE) / sum(g6_male[83:92], na.rm = TRUE)) * 100, 1),
+  g6_Pct.of.Cases = round((colSums(g6_male[83:92], na.rm = TRUE) / nrow(g6_male[83:92])) * 100, 1)
+)
+
+data_g6_male
+#data_g6
+
+
+
+
+data_g6_male <- data_g6_male %>% 
+  mutate(
+    g6_male_cats = case_when(
+      g6_male_cats == "g6_afford_prem" ~ "Affordable premiums", 
+      g6_male_cats == "g6_simp_proc" ~ "Simplified application processes", 
+      g6_male_cats == "g6_clear_terms" ~ "Clear terms",
+      g6_male_cats == "g6_increas_educ" ~ "Increased education",
+      g6_male_cats == "g6_cust_ins"   ~ "Customized insurance",
+      g6_male_cats == "g6_compreh_cover" ~ "Comprehensive coverage for risks",
+      g6_male_cats == "g6_access_mobile" ~ "Improved accessibility via mobile", 
+      g6_male_cats == "g6_fair_prem" ~ "Premiums assessed fairly",
+      g6_male_cats == "g6_flex_pay"  ~ "Flexible payment options",
+      g6_male_cats == "g6_claims_proc" ~ "Claims process",
+      
+      TRUE ~ g6_male_cats
+    )
+  )
+
+data_g6_male
+
+dim(data_g6_male)
+  
+
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+fig_g6_male <- data_g6_male %>%
+  
+  mutate(g6_male_cats = fct_reorder(g6_male_cats, g6_Pct.of.Cases)) %>%
+  
+  ggplot(aes(x = g6_male_cats, y = g6_Pct.of.Cases)) +
+  
+  geom_bar(stat = "identity", fill = 4, alpha = 1, width = 0.4) + # "#f68060" # "darkcyan"
+  
+  geom_text(aes(label = paste0(round(g6_Pct.of.Cases, 1), "%")), 
+            position = position_stack(vjust = 1), 
+            color = "black", 
+            size = 6, 
+            family = "Times New Roman",
+            angle = 360) +  # Add geom_text for data labels
+  
+  xlab("") +
+  ylab("") +
+  
+  # xlab("What improvements would you like to see in agricultural insurance offerings for farmers?") +
+  # ylab("Proportion of farmers") +
+  
+  ggtitle("Improvement - Male") +
+  
+  theme_bw() +
+  
+  coord_flip(ylim = c(0, 40.5), expand = FALSE) +
+  
+ # coord_cartesian(xlim = c(0, 100)) + # adjust axes and coordinates 
+  
+  theme(
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"))#,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_g6_male
+
+ggsave(filename = "fig_g6_male.png",
+       plot = fig_g6_male,
+       width = 4.5,
+       height = 3.5,
+       dpi = "print",
+       bg = "white")
+```
+
+```{r, include=FALSE}
+
+ #names(amaizing_endlinedata_clean_v6)
+
+# study_county <- amaizing_endlinedata_clean_v6 %>%
+#   filter(b6 %in% c("Bungoma", "Busia", "Embu", "Makueni","Uasin Gishu" ))
+
+
+g6_female <- study_county %>%
+  filter(b2 == "Female") 
+
+
+g6_female_cats <- names(g6_female)[83:92]
+
+
+
+
+ #data_g6 <- str_remove_all(data_g6, "A17_")
+
+data_g6_female <- data.frame(
+  g6_female_cats,
+  Freq = colSums(g6_female[83:92], na.rm = TRUE),  # Use na.rm = TRUE to handle NA values
+  g6_Pct.of.Resp = round((colSums(g6_female[83:92], na.rm = TRUE) / sum(g6_female[83:92], na.rm = TRUE)) * 100, 1),
+  g6_Pct.of.Cases = round((colSums(g6_female[83:92], na.rm = TRUE) / nrow(g6_female[83:92])) * 100, 1)
+)
+
+data_g6_female
+#data_g6
+
+
+
+
+data_g6_female <- data_g6_female %>% 
+  mutate(
+    g6_female_cats = case_when(
+      g6_female_cats == "g6_afford_prem" ~ "Affordable premiums", 
+      g6_female_cats == "g6_simp_proc" ~ "Simplified application processes", 
+      g6_female_cats == "g6_clear_terms" ~ "Clear terms",
+      g6_female_cats == "g6_increas_educ" ~ "Increased education",
+      g6_female_cats == "g6_cust_ins"   ~ "Customized insurance",
+      g6_female_cats == "g6_compreh_cover" ~ "Comprehensive coverage for risks",
+      g6_female_cats == "g6_access_mobile" ~ "Improved accessibility via mobile", 
+      g6_female_cats == "g6_fair_prem" ~ "Premiums assessed fairly",
+      g6_female_cats == "g6_flex_pay"  ~ "Flexible payment options",
+      g6_female_cats == "g6_claims_proc" ~ "Claims process",
+      
+      TRUE ~ g6_female_cats
+    )
+  )
+
+data_g6_female
+
+dim(data_g6_female)
+  
+
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+fig_g6_female <- data_g6_female %>%
+  
+  mutate(g6_female_cats = fct_reorder(g6_female_cats, g6_Pct.of.Cases)) %>%
+  
+  ggplot(aes(x = g6_female_cats, y = g6_Pct.of.Cases)) +
+  
+  geom_bar(stat = "identity", fill = 4, alpha = 1, width = 0.4) + # "#f68060" # "darkcyan"
+  
+  geom_text(aes(label = paste0(round(g6_Pct.of.Cases, 1), "%")), 
+            position = position_stack(vjust = 1), 
+            color = "black", 
+            size = 6, 
+            family = "Times New Roman",
+            angle = 360) +  # Add geom_text for data labels
+  
+  xlab("") +
+  ylab("") +
+  
+  # xlab("What improvements would you like to see in agricultural insurance offerings for farmers?") +
+  # ylab("Proportion of farmers") +
+  
+
+  ggtitle("Improvement - Female") +
+  
+  theme_bw() +
+  
+  coord_flip(ylim = c(0, 40.5), expand = FALSE) +
+  
+ # coord_cartesian(xlim = c(0, 100)) + # adjust axes and coordinates 
+  
+  theme(
+    axis.text.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"))#,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_g6_female
+
+ggsave(filename = "fig_g6_female.png",
+       plot = fig_g6_female,
+       width = 4.5,
+       height = 3.5,
+       dpi = "print",
+       bg = "white")
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+
+#library(gridExtra)
+
+grid.arrange(fig_g6_male, fig_g6_female, ncol = 1)
+
+
+# save the plot 
+ggsave(filename = "fig_g6_mf_improv.png",
+       grid.arrange(fig_g6_male, fig_g6_female, ncol = 1),
+       # width = 5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+# 1.2 Farmer **risk mitigation** strategies (how they vary per county).
+
+## F3. Which risk management strategies did you implement on your farm in 2021 and before? - treat farmers
+
+```{r, include=FALSE}
+
+# names(amaizing_endlinedata_clean_v6)
+
+# Convert column names of f3_ to a vector
+
+data_treat <- study_county %>%
+  filter(c2 == "Yes")
+dim(data_treat)
+
+f3_treat_cats <- names(data_treat)[56:63]
+
+
+# Compute freq and % of f3_treat multiple responses and combine with f3_treat_cats to make a data frame data_f3_treat
+
+data_f3_treat <- data.frame(
+  f3_treat_cats,
+  f3_treat_freq = colSums(data_treat[56:63], na.rm = TRUE),  # Use na.rm = TRUE to handle NA values
+  f3_treat_Pct.of.Resp = round((colSums(data_treat[56:63], na.rm = TRUE) / sum(data_treat[56:63], na.rm = TRUE)) * 100, 1),
+  f3_treat_Pct.of.Cases = round((colSums(data_treat[56:63], na.rm = TRUE) / nrow(data_treat[56:63])) * 100, 1)
+)
+
+data_f3_treat
+
+# Replace shortened f3 levels/values with readable values
+
+data_f3_treat <- data_f3_treat %>% 
+  mutate(
+    f3_treat_cats = case_when(
+
+      f3_treat_cats == "f3_div_crop" ~ "Diversifying crops", 
+      f3_treat_cats == "f3_drought_res" ~ "Using drought-resistant varieties", 
+      f3_treat_cats == "f3_agric_ins" ~ "Purchasing agricultural insurance",
+      f3_treat_cats == "f3_adjus_time" ~ "Adjusting planting or harvesting times",
+      f3_treat_cats == "f3_irrign"   ~ "Irrigation",
+      f3_treat_cats == "f3_ipm" ~ "IPM",
+      f3_treat_cats == "f3_slm" ~ "SLM", 
+      f3_treat_cats == "f3_none" ~ "None of the above",
+      
+      TRUE ~ f3_treat_cats
+    )
+  )
+
+data_f3_treat
+
+
+  
+
+```
+
+```{r, warning=FALSE, include=FALSE}
+
+fig_f3_treat <- data_f3_treat %>%
+  
+  mutate(f3_treat_cats = fct_reorder(f3_treat_cats, f3_treat_Pct.of.Cases)) %>%
+  
+  ggplot(aes(x = f3_treat_cats, y = f3_treat_Pct.of.Cases)) +
+  
+  geom_bar(stat = "identity", fill = "darkcyan", alpha = 1, width = 0.4) + # "#f68060"
+  
+  geom_text(aes(label = paste0(round(f3_treat_Pct.of.Cases, 1), "%")), 
+            position = position_stack(vjust = 1), 
+            color = "black", 
+            size = 8, 
+            family = "Times New Roman",
+            angle = 360) +  # Add geom_text for data labels
+  
+  #xlab("Risk management strategies implemented") +
+  xlab("") +
+  ylab("") +
+  ggtitle("In 2021 and before - Intervention") +
+  
+  theme_bw() +
+  
+  coord_flip(ylim = c(0, 61), expand = TRUE) +
+  
+  
+ # coord_cartesian(xlim = c(0, 100)) + # adjust axes and coordinates 
+  
+  theme(
+    axis.text.x = element_blank(), # Remove x axis text
+    #axis.text.y = element_blank(),
+    #axis.text.x = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 20, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 20, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 20, color = "black"))#,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f3_treat
+
+ggsave(filename = "fig_f3_treat.png",
+       plot = fig_f3_treat,
+       width = 4.5,
+       height = 3.5,
+       dpi = "print",
+       bg = "white")
+```
+
+## F3. Which risk management strategies did you implement on your farm in 2021 and before? - control farmers
+
+```{r, include=FALSE}
+
+# names(amaizing_endlinedata_clean_v6)
+
+# Convert column names of f3_ to a vector
+
+data_control <- study_county %>%
+  filter(c2 == "No")
+dim(data_control)
+
+f3_control_cats <- names(data_control)[56:63]
+
+
+# Compute freq and % of f3_treat multiple responses and combine with f3_treat_cats to make a data frame data_f3_treat
+
+data_f3_control <- data.frame(
+  f3_control_cats,
+  f3_control_freq = colSums(data_control[56:63], na.rm = TRUE),  # Use na.rm = TRUE to handle NA values
+  f3_control_Pct.of.Resp = round((colSums(data_control[56:63], na.rm = TRUE) / sum(data_control[56:63], na.rm = TRUE)) * 100, 1),
+  f3_control_Pct.of.Cases = round((colSums(data_control[56:63], na.rm = TRUE) / nrow(data_control[56:63])) * 100, 1)
+)
+
+data_f3_control
+
+# Replace shortened f3 levels/values with readable values
+
+data_f3_control <- data_f3_control %>% 
+  mutate(
+    f3_control_cats = case_when(
+
+      f3_control_cats == "f3_div_crop" ~ "Diversifying crops", 
+      f3_control_cats == "f3_drought_res" ~ "Using drought-resistant varieties", 
+      f3_control_cats == "f3_agric_ins" ~ "Purchasing agricultural insurance",
+      f3_control_cats == "f3_adjus_time" ~ "Adjusting planting or harvesting times",
+      f3_control_cats == "f3_irrign"   ~ "Irrigation",
+      f3_control_cats == "f3_ipm" ~ "IPM",
+      f3_control_cats == "f3_slm" ~ "SLM", 
+      f3_control_cats == "f3_none" ~ "None of the above",
+      
+      TRUE ~ f3_control_cats
+    )
+  )
+
+data_f3_control
+
+
+  
+
+```
+
+```{r, warning=FALSE, include=FALSE}
+
+fig_f3_control <- data_f3_control %>%
+  
+  mutate(f3_control_cats = fct_reorder(f3_control_cats, f3_control_Pct.of.Cases)) %>%
+  
+  ggplot(aes(x = f3_control_cats, y = f3_control_Pct.of.Cases)) +
+  
+  geom_bar(stat = "identity", fill = "darkcyan", alpha = 1, width = 0.4) + # "#f68060"
+  
+  geom_text(aes(label = paste0(round(f3_control_Pct.of.Cases, 1), "%")), 
+            position = position_stack(vjust = 1), 
+            color = "black", 
+            size = 8, 
+            family = "Times New Roman",
+            angle = 360) +  # Add geom_text for data labels
+  
+  #xlab("Risk management strategies implemented") +
+  xlab("") +
+  ylab("") +
+  ggtitle("In 2021 and before - Comparison") +
+  
+  theme_bw() +
+  
+  coord_flip(ylim = c(0, 26), expand = TRUE) +
+  
+  
+ # coord_cartesian(xlim = c(0, 100)) + # adjust axes and coordinates 
+  
+  theme(
+    axis.text.x = element_blank(), # Remove x axis text
+    #axis.text.y = element_blank(),
+    #axis.text.x = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 20, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 20, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 20, color = "black"))#,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f3_control
+
+ggsave(filename = "fig_f3_control.png",
+       plot = fig_f3_control,
+       width = 4.5,
+       height = 3.5,
+       dpi = "print",
+       bg = "white")
+```
+
+## F4. Which risk management strategies did you implement on your farm in the last one year? - treat farmers
+
+```{r, include=FALSE}
+
+ #names(amaizing_endlinedata_clean_v6)
+
+# Convert column names of f4_ to a vector
+
+f4_treat_cats <- names(data_treat)[65:72]
+
+
+# Compute freq and % of f4 multiple responses and combine with f4_cats to make a data frame data_f4
+
+data_f4_treat <- data.frame(
+  f4_treat_cats,
+  f4_treat_freq = colSums(data_treat[65:72], na.rm = TRUE),  # Use na.rm = TRUE to handle NA values
+  f4_treat_Pct.of.Resp = round((colSums(data_treat[65:72], na.rm = TRUE) / sum(data_treat[65:72], na.rm = TRUE)) * 100, 1),
+  f4_treat_Pct.of.Cases = round((colSums(data_treat[65:72], na.rm = TRUE) / nrow(data_treat[65:72])) * 100, 1)
+)
+
+data_f4_treat
+
+# Replace shortened f3 levels/values with readable values
+
+data_f4_treat <- data_f4_treat %>% 
+  mutate(
+    f4_treat_cats = case_when(
+
+      f4_treat_cats == "f4_divers_crop" ~ "Diversifying crops", 
+      f4_treat_cats == "f4_drought_res" ~ "Using drought-resistant varieties", 
+      f4_treat_cats == "f4_agric_ins" ~ "Purchasing agricultural insurance",
+      f4_treat_cats == "f4_adjust_time" ~ "Adjusting planting or harvesting times",
+      f4_treat_cats == "f4_irrigation"   ~ "Irrigation",
+      f4_treat_cats == "f4_ipm" ~ "IPM",
+      f4_treat_cats == "f4_slm" ~ "SLM", 
+      f4_treat_cats == "f4_none" ~ "None of the above",
+      
+      TRUE ~ f4_treat_cats
+    )
+  )
+
+data_f4_treat
+
+
+  
+
+```
+
+```{r, warning=FALSE, include=FALSE}
+
+fig_f4_treat <- data_f4_treat %>%
+  
+  mutate(f4_treat_cats = fct_reorder(f4_treat_cats, f4_treat_Pct.of.Cases)) %>%
+  
+  ggplot(aes(x = f4_treat_cats, y = f4_treat_Pct.of.Cases)) +
+  
+  geom_bar(stat = "identity", fill = "darkcyan", alpha = 1, width = 0.4) + # "#f68060"
+  
+  geom_text(aes(label = paste0(round(f4_treat_Pct.of.Cases, 1), "%")), 
+            position = position_stack(vjust = 1), 
+            color = "black", 
+            size = 8, 
+            family = "Times New Roman",
+            #fontface = "bold",
+            angle = 360) +  # Add geom_text for data labels
+  
+  xlab("") +
+  ylab("") +
+  
+  #xlab("Risk management strategies implemented") +
+  #xlab("") +
+  #ylab("Proportion of farmers") +
+  
+  ggtitle("In the last one year - Intervention") +
+  
+  theme_bw() +
+  
+  coord_flip(ylim = c(0, 61), expand = TRUE) +
+  
+  
+ # coord_cartesian(xlim = c(0, 100)) + # adjust axes and coordinates 
+  
+  theme(
+    label_x = 0.5,
+    axis.text.x = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 20, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 20, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 20, color = "black"))#,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f4_treat
+
+ggsave(filename = "fig_f4_treat.png",
+       plot = fig_f4_treat,
+       width = 4.5,
+       height = 3.5,
+       dpi = "print",
+       bg = "white")
+```
+
+## F4. Which risk management strategies did you implement on your farm in the last one year? - control farmers
+
+```{r, include=FALSE}
+
+ #names(amaizing_endlinedata_clean_v6)
+
+# Convert column names of f4_ to a vector
+
+f4_control_cats <- names(data_control)[65:72]
+
+
+# Compute freq and % of f4 multiple responses and combine with f4_cats to make a data frame data_f4
+
+data_f4_control <- data.frame(
+  f4_control_cats,
+  f4_control_freq = colSums(data_control[65:72], na.rm = TRUE),  # Use na.rm = TRUE to handle NA values
+  f4_control_Pct.of.Resp = round((colSums(data_control[65:72], na.rm = TRUE) / sum(data_control[65:72], na.rm = TRUE)) * 100, 1),
+  f4_control_Pct.of.Cases = round((colSums(data_control[65:72], na.rm = TRUE) / nrow(data_control[65:72])) * 100, 1)
+)
+
+data_f4_control
+
+# Replace shortened f3 levels/values with readable values
+
+data_f4_control <- data_f4_control %>% 
+  mutate(
+    f4_control_cats = case_when(
+
+      f4_control_cats == "f4_divers_crop" ~ "Diversifying crops", 
+      f4_control_cats == "f4_drought_res" ~ "Using drought-resistant varieties", 
+      f4_control_cats == "f4_agric_ins" ~ "Purchasing agricultural insurance",
+      f4_control_cats == "f4_adjust_time" ~ "Adjusting planting or harvesting times",
+      f4_control_cats == "f4_irrigation"   ~ "Irrigation",
+      f4_control_cats == "f4_ipm" ~ "IPM",
+      f4_control_cats == "f4_slm" ~ "SLM", 
+      f4_control_cats == "f4_none" ~ "None of the above",
+      
+      TRUE ~ f4_control_cats
+    )
+  )
+
+data_f4_control
+
+
+  
+
+```
+
+```{r, warning=FALSE, include=FALSE}
+
+fig_f4_control <- data_f4_control %>%
+  
+  mutate(f4_control_cats = fct_reorder(f4_control_cats, f4_control_Pct.of.Cases)) %>%
+  
+  ggplot(aes(x = f4_control_cats, y = f4_control_Pct.of.Cases)) +
+  
+  geom_bar(stat = "identity", fill = "darkcyan", alpha = 1, width = 0.4) + # "#f68060"
+  
+  geom_text(aes(label = paste0(round(f4_control_Pct.of.Cases, 1), "%")), 
+            position = position_stack(vjust = 1), 
+            color = "black", 
+            size = 8, 
+            family = "Times New Roman",
+            #fontface = "bold",
+            angle = 360) +  # Add geom_text for data labels
+  
+  xlab("") +
+  ylab("") +
+  
+  #xlab("Risk management strategies implemented") +
+  #xlab("") +
+  #ylab("Proportion of farmers") +
+  
+  ggtitle("In the last one year - Comparison") +
+  
+  theme_bw() +
+  
+  coord_flip(ylim = c(0, 26), expand = TRUE) +
+  
+  
+ # coord_cartesian(xlim = c(0, 100)) + # adjust axes and coordinates 
+  
+  theme(
+    label_x = 0.5,
+    axis.text.x = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.text.y = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.title.x = element_text(family = "Times New Roman", size = 20, color = "black"),
+    axis.title.y = element_text(family = "Times New Roman", size = 20, color = "black"),
+    legend.title = element_text(family = "Times New Roman", size = 20, color = "black"),
+    legend.text = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.title = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.subtitle = element_text(family = "Times New Roman", size = 20, color = "black"),
+    plot.caption = element_text(family = "Times New Roman", size = 20, color = "black"))#,
+    #plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f4_control
+
+ggsave(filename = "fig_f4_control.png",
+       plot = fig_f4_control,
+       width = 4.5,
+       height = 3.5,
+       dpi = "print",
+       bg = "white")
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+
+#library(gridExtra)
+
+grid.arrange(fig_f3_treat, fig_f3_control, fig_f4_treat, fig_f4_control, ncol = 2)
+
+
+# save the plot 
+ggsave(filename = "fig_f3_f4_ct.png",
+       plot = grid.arrange(fig_f3_treat, fig_f3_control, fig_f4_treat, fig_f4_control, ncol = 2),
+       # width = 6,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+## F5. On a scale of 1 to 5, how has the insurance product helped you manage farm risks? (1 being "not at all helpful" and 5 being "extremely helpful)
+
+```{r}
+data_f5_stack <- study_county %>%
+  dplyr::filter(!is.na(f5_scale) & !is.na(b6) & c2 == "Yes") %>%
+  dplyr::select(f5_scale, b6) 
+
+unique(data_f5_stack$b6)
+```
+
+```{r}
+# Create a cross-tabulation of age by gender
+
+tabdist <- table(data_f5_stack$f5_scale, data_f5_stack$b6) 
+tabdist
+
+```
+
+```{r}
+# Convert table to data frame
+tabdist_df <- as.data.frame(tabdist) %>%
+  filter(Var2 %in% c("Bungoma", "Busia", "Makueni", "Embu", "Uasin Gishu"))
+
+colnames(tabdist_df) <- c("f5_ord", "county", "Count")
+tabdist_df
+
+```
+
+```{r}
+# Calculate percentages
+
+tabdist_df <- tabdist_df %>%
+  group_by(county) %>%
+  mutate(Percentage = Count / sum(Count) * 100)
+
+tabdist_df <- as.data.frame(tabdist_df) %>%
+  dplyr::filter(!is.na(county)) # or filter(county != "NaN") if represented as string
+
+class(tabdist_df)
+
+tabdist_df
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+# Create the plot
+
+fig_f5 <- ggplot(tabdist_df, aes(x = county, y = Percentage, fill = f5_ord)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), 
+            position = position_stack(vjust = 0.5), size = 6) +
+  coord_cartesian(ylim = c(0, 100))+ #, expand = FALSE) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_fill_brewer(palette = "Blues", name = "Insurance product was:") +
+  labs(y = "", x = "") + #,  fill = " Insurance product helped:") +
+  theme_bw() + # y = "Proportion of farmers", x = "County"
+  #theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, family = "Times New Roman", size = 18, color = "black"),
+        axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"))#,
+       # plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f5
+
+# save the plot 
+ggsave(filename = "fig_f5.png",
+       plot = fig_f5,
+       # width = 4.5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+```
+
+## F6. What is the main reason for not purchasing the insurance product despite registering for the project? - all
+
+```{r, warning=FALSE}
+# Create a cross-tabulation of age by gender
+
+#dim(study_county)  # 1435  127
+
+data_f6 <- study_county %>%
+  filter(!is.na(b2) & !is.na(f6_no_ins))
+
+dim(data_f6) # 665 127
+
+tabdist <- table(data_f6$b2, data_f6$f6_no_ins)
+tabdist
+
+# Convert table to data frame
+
+tabdist_df <- as.data.frame(tabdist)
+colnames(tabdist_df) <- c("b2", "f6_no_ins", "Count")
+tabdist_df
+
+# Calculate percentages
+
+tabdist_df <- tabdist_df %>%
+  group_by(f6_no_ins) %>%
+  mutate(Percentage = Count*100/ sum(Count))
+tabdist_df
+
+# Create a clustered bar plot
+
+fig_f6_mf <- ggplot(tabdist_df, aes(x = f6_no_ins, y = Percentage, fill = b2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), 
+            position = position_stack(vjust = 0.5), size = 6) +
+  coord_cartesian(ylim = c(0, 100))+ #, expand = FALSE) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(y = "Percentage", x = "", fill = "Gender", title = "Barriers") +
+  #theme_minimal() +
+  theme_bw() +
+  #theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, family = "Times New Roman", size = 18, color = "black"),
+        axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f6_mf
+
+# save the plot 
+ggsave(filename = "fig_f6_mf.png",
+       plot = fig_f6_mf,
+       # width = 4.5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+##F7-all. What would have MAINLY motivated you to purchase crop insurance?
+
+```{r, warning=FALSE}
+# Create a cross-tabulation of age by gender
+
+#dim(study_county)  # 1435  127
+
+data_f7 <- study_county %>%
+  filter(!is.na(b2) & !is.na(f7) & f7 != "None of the above")
+
+dim(data_f7) # 665 127
+
+tabdist_f7 <- table(data_f7$b2, data_f7$f7)
+tabdist_f7
+
+# Convert table to data frame
+
+tabdist_f7_df <- as.data.frame(tabdist_f7)
+colnames(tabdist_f7_df) <- c("b2", "f7", "Count")
+
+tabdist_f7_df <- tabdist_f7_df %>%
+  filter(f7 != "None of the above")
+
+#unique(tabdist_f7_df$f7)
+
+# Calculate percentages
+
+tabdist_f7_df <- tabdist_f7_df %>%
+  group_by(f7) %>%
+  mutate(Percentage = Count*100/ sum(Count))
+tabdist_f7_df
+
+# Create a clustered bar plot
+
+fig_f7_mf <- ggplot(tabdist_f7_df, 
+                    
+                    # %>% mutate(f7 = ifelse(f7 == "More accessible information about benefits", "More accessible information\n about benefits",
+                    #                                      ifelse(f7 == "Positive testimonials from other farmers", "Positive testimonials\n from other farmers ",
+                    # 
+                    # as.character(f7)))),
+                    
+                    aes(x = f7, y = Percentage, fill = b2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), 
+            position = position_stack(vjust = 0.5), size = 6) +
+  coord_cartesian(ylim = c(0, 100))+ #, expand = FALSE) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(y = "Percentage", x = "", fill = "Gender", title = "Motivation") +
+  #theme_minimal() +
+  theme_bw() +
+  #theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, family = "Times New Roman", size = 18, color = "black"),
+        axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f7_mf
+
+# save the plot 
+ggsave(filename = "fig_f7_mf.png",
+       plot = fig_f7_mf,
+       # width = 4.5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+
+#library(gridExtra)
+
+grid.arrange(fig_f6_mf, fig_f7_mf, ncol = 2)
+
+
+# save the plot 
+ggsave(filename = "fig_f6_f7_ct.png",
+       plot = grid.arrange(fig_f6_mf, fig_f7_mf, ncol = 2),
+       # width = 6,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+## F6 - trained = yes. What is the main reason for not purchasing the insurance product despite registering for the project?
+
+```{r, warning=FALSE}
+
+# Create a cross-tabulation of age by gender
+
+#dim(study_county)  # 1435  127
+
+data_f6_train <- study_county %>%
+  filter(!is.na(b2) & !is.na(f6_no_ins) & h1 == "Yes")
+
+dim(data_f6) # 665 127
+
+dim(data_f6_train) # 162 127
+
+tabdist_f6_train <- table(data_f6_train$b2, data_f6_train$f6_no_ins)
+tabdist_f6_train
+
+# Convert table to data frame
+
+tabdist_f6_train_df <- as.data.frame(tabdist_f6_train)
+colnames(tabdist_f6_train_df) <- c("b2", "f6_no_ins", "Count")
+tabdist_f6_train_df
+
+# Calculate percentages
+
+tabdist_f6_train_df <- tabdist_f6_train_df %>%
+  group_by(f6_no_ins) %>%
+  mutate(Percentage = Count*100/ sum(Count))
+tabdist_f6_train_df
+
+# Create a clustered bar plot
+
+fig_f6_mf_train <- ggplot(tabdist_f6_train_df, aes(x = f6_no_ins, y = Percentage, fill = b2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), 
+            position = position_stack(vjust = 0.5), size = 6) +
+  coord_cartesian(ylim = c(0, 100))+ #, expand = FALSE) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(y = "Percentage", x = "", fill = "Gender", title = "Trained - no insurance") +
+  #theme_minimal() +
+  theme_bw() +
+  #theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, family = "Times New Roman", size = 18, color = "black"),
+        axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f6_mf_train
+
+# save the plot 
+ggsave(filename = "fig_f6_mf_train.png",
+       plot = fig_f6_mf_train,
+       # width = 4.5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+## F6 - trained = No. What is the main reason for not purchasing the insurance product despite registering for the project?
+
+```{r, warning=FALSE}
+
+# Create a cross-tabulation of age by gender
+
+#dim(study_county)  # 1435  127
+
+data_f6_untrain <- study_county %>%
+  filter(h1 == "No" & !is.na(b2) & !is.na(f6_no_ins))
+
+dim(data_f6) # 665 127
+
+dim(data_f6_untrain) # 503 127
+
+tabdist_f6_untrain <- table(data_f6_untrain$b2, data_f6_untrain$f6_no_ins)
+tabdist_f6_untrain
+
+# Convert table to data frame
+
+tabdist_f6_untrain_df <- as.data.frame(tabdist_f6_untrain)
+colnames(tabdist_f6_untrain_df) <- c("b2", "f6_no_ins", "Count")
+tabdist_f6_untrain_df
+
+# Calculate percentages
+
+tabdist_f6_untrain_df <- tabdist_f6_untrain_df %>%
+  group_by(f6_no_ins) %>%
+  mutate(Percentage = Count*100/ sum(Count)) %>%
+  filter(f6_no_ins != "Purchased from another provider")
+tabdist_f6_untrain_df
+
+# Create a clustered bar plot
+
+fig_f6_mf_untrain <- ggplot(tabdist_f6_untrain_df, aes(x = f6_no_ins, y = Percentage, fill = b2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), 
+            position = position_stack(vjust = 0.5), size = 6) +
+  coord_cartesian(ylim = c(0, 100))+ #, expand = FALSE) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(y = "Percentage", x = "", fill = "Gender", title = "Untrained - no insurance") +
+  #theme_minimal() +
+  theme_bw() +
+  #theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, family = "Times New Roman", size = 18, color = "black"),
+        axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f6_mf_untrain
+
+# save the plot 
+ggsave(filename = "fig_f6_mf_untrain.png",
+       plot = fig_f6_mf_untrain,
+       # width = 4.5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+##F7-trained. What would have MAINLY motivated you to purchase crop insurance?
+
+```{r, warning=FALSE}
+# Create a cross-tabulation of age by gender
+
+#dim(study_county)  # 1435  127
+
+data_f7_train <- study_county %>%
+  filter(h1 == "Yes" & !is.na(b2) & !is.na(f7) & f7 != "None of the above")
+
+dim(data_f7_train) # 147 127
+
+tabdist_f7_train <- table(data_f7_train$b2, data_f7_train$f7)
+tabdist_f7_train
+
+# Convert table to data frame
+
+tabdist_f7_train_df <- as.data.frame(tabdist_f7_train)
+colnames(tabdist_f7_train_df) <- c("b2", "f7", "Count")
+
+tabdist_f7_train_df <- tabdist_f7_train_df %>%
+  filter(f7 != "None of the above")
+
+#unique(tabdist_f7_df$f7)
+
+# Calculate percentages
+
+tabdist_f7_train_df <- tabdist_f7_train_df %>%
+  group_by(f7) %>%
+  mutate(Percentage = Count*100/ sum(Count))
+tabdist_f7_train_df
+
+# Create a clustered bar plot
+
+fig_f7_mf_train <- ggplot(tabdist_f7_train_df, 
+                    
+                    # %>% mutate(f7 = ifelse(f7 == "More accessible information about benefits", "More accessible information\n about benefits",
+                    #                                      ifelse(f7 == "Positive testimonials from other farmers", "Positive testimonials\n from other farmers ",
+                    # 
+                    # as.character(f7)))),
+                    
+                    aes(x = f7, y = Percentage, fill = b2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), 
+            position = position_stack(vjust = 0.5), size = 6) +
+  coord_cartesian(ylim = c(0, 100))+ #, expand = FALSE) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(y = "Percentage", x = "", fill = "Gender", title = "Trained - motivation") +
+  #theme_minimal() +
+  theme_bw() +
+  #theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, family = "Times New Roman", size = 18, color = "black"),
+        axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f7_mf_train
+
+# save the plot 
+ggsave(filename = "fig_f7_mf_train.png",
+       plot = fig_f7_mf_train,
+       # width = 4.5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+##F7-untrained. What would have MAINLY motivated you to purchase crop insurance?
+
+```{r, warning=FALSE}
+# Create a cross-tabulation of age by gender
+
+#dim(study_county)  # 1435  127
+
+data_f7_untrain <- study_county %>%
+  filter(h1 == "No" & !is.na(b2) & !is.na(f7) & f7 != "None of the above")
+
+dim(data_f7_untrain) # 481 127
+
+tabdist_f7_untrain <- table(data_f7_untrain$b2, data_f7_untrain$f7)
+tabdist_f7_untrain
+
+# Convert table to data frame
+
+tabdist_f7_untrain_df <- as.data.frame(tabdist_f7_untrain)
+colnames(tabdist_f7_untrain_df) <- c("b2", "f7", "Count")
+
+tabdist_f7_untrain_df <- tabdist_f7_untrain_df %>%
+  filter(f7 != "None of the above")
+
+#unique(tabdist_f7_df$f7)
+
+# Calculate percentages
+
+tabdist_f7_untrain_df <- tabdist_f7_untrain_df %>%
+  group_by(f7) %>%
+  mutate(Percentage = Count*100/ sum(Count))
+tabdist_f7_untrain_df
+
+# Create a clustered bar plot
+
+fig_f7_mf_untrain <- ggplot(tabdist_f7_untrain_df, 
+                    
+                    # %>% mutate(f7 = ifelse(f7 == "More accessible information about benefits", "More accessible information\n about benefits",
+                    #                                      ifelse(f7 == "Positive testimonials from other farmers", "Positive testimonials\n from other farmers ",
+                    # 
+                    # as.character(f7)))),
+                    
+                    aes(x = f7, y = Percentage, fill = b2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), 
+            position = position_stack(vjust = 0.5), size = 6) +
+  coord_cartesian(ylim = c(0, 100))+ #, expand = FALSE) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(y = "Percentage", x = "", fill = "Gender", title = "Untrained - motivation") +
+  #theme_minimal() +
+  theme_bw() +
+  #theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, family = "Times New Roman", size = 18, color = "black"),
+        axis.text.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.x = element_text(family = "Times New Roman", size = 18, color = "black"),
+        axis.title.y = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        legend.text = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.title = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.subtitle = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.caption = element_text(family = "Times New Roman", size = 18, color = "black"),
+        plot.margin = margin(t = 1, b = 1, l = 0.5, r = 0.5, unit = "cm"))
+
+fig_f7_mf_untrain
+
+# save the plot 
+ggsave(filename = "fig_f7_mf_untrain.png",
+       plot = fig_f7_mf_untrain,
+       # width = 4.5,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
+
+```{r, warning=FALSE, include=TRUE}
+
+
+#library(gridExtra)
+
+#grid.arrange(fig_f6_mf_train, fig_f7_mf_train, fig_f6_mf_untrain, fig_f7_mf_untrain, ncol = 2)
+
+grid.arrange(fig_f6_mf_train, fig_f6_mf_untrain, ncol = 2)
+
+
+# save the plot 
+ggsave(filename = "fig_f6_f7_noInsurance.png",
+       grid.arrange(fig_f6_mf_train, fig_f6_mf_untrain, ncol = 2),
+       # width = 6,
+       # height = 4.5,
+       dpi = "print",
+       bg = "white")
+
+```
